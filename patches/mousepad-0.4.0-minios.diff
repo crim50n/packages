@@ -1,0 +1,97 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ mousepad (0.4.0-4) unstable; urgency=medium
+ .
+   * debian/patches:
+     - 01_prevent-a-g_settings-cycle and
+       02_do-not-manually-update-the-view-theme added, fix bug leading to huge
+       DBus trafic and large CPU usage.                          closes: #795192
+   * debian/control:
+     - update standards version to 3.9.8.
+Author: Yves-Alexis Perez <corsac@debian.org>
+Bug-Debian: https://bugs.debian.org/795192
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: 2022-07-06
+
+--- mousepad-0.4.0.orig/mousepad/mousepad-window.c
++++ mousepad-0.4.0/mousepad/mousepad-window.c
+@@ -828,53 +828,6 @@ mousepad_window_create_toolbar (Mousepad
+ 
+ 
+ static void
+-mousepad_window_create_root_warning (MousepadWindow *window)
+-{
+-  /* check if we need to add the root warning */
+-  if (G_UNLIKELY (geteuid () == 0))
+-    {
+-      GtkWidget *ebox, *label, *separator;
+-
+-  /* In GTK3, gtkrc is deprecated */
+-#if GTK_CHECK_VERSION(3, 0, 0) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ > 2)
+-# pragma GCC diagnostic push
+-# pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+-#endif
+-
+-      /* install default settings for the root warning text box */
+-      gtk_rc_parse_string ("style\"mousepad-window-root-style\"\n"
+-                             "{\n"
+-                               "bg[NORMAL]=\"#b4254b\"\n"
+-                               "fg[NORMAL]=\"#fefefe\"\n"
+-                             "}\n"
+-                           "widget\"MousepadWindow.*.root-warning\"style\"mousepad-window-root-style\"\n"
+-                           "widget\"MousepadWindow.*.root-warning.GtkLabel\"style\"mousepad-window-root-style\"\n");
+-
+-#if GTK_CHECK_VERSION(3, 0, 0) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ > 2)
+-# pragma GCC diagnostic pop
+-#endif
+-
+-      /* add the box for the root warning */
+-      ebox = gtk_event_box_new ();
+-      gtk_widget_set_name (ebox, "root-warning");
+-      gtk_box_pack_start (GTK_BOX (window->box), ebox, FALSE, FALSE, 0);
+-      gtk_widget_show (ebox);
+-
+-      /* add the label with the root warning */
+-      label = gtk_label_new (_("Warning, you are using the root account, you may harm your system."));
+-      gtk_misc_set_padding (GTK_MISC (label), 6, 3);
+-      gtk_container_add (GTK_CONTAINER (ebox), label);
+-      gtk_widget_show (label);
+-
+-      separator = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
+-      gtk_box_pack_start (GTK_BOX (window->box), separator, FALSE, FALSE, 0);
+-      gtk_widget_show (separator);
+-    }
+-}
+-
+-
+-
+-static void
+ mousepad_window_create_notebook (MousepadWindow *window)
+ {
+   window->notebook = g_object_new (GTK_TYPE_NOTEBOOK,
+@@ -1047,9 +1000,6 @@ mousepad_window_init (MousepadWindow *wi
+   /* create the toolbar from the ui manager */
+   mousepad_window_create_toolbar (window);
+ 
+-  /* create the root-warning bar (if needed) */
+-  mousepad_window_create_root_warning (window);
+-
+   /* create the notebook */
+   mousepad_window_create_notebook (window);
+ 

@@ -1,0 +1,45 @@
+#!/bin/bash
+
+PCMANFM=""
+MOUSEPAD=""
+THUNAR=""
+
+if grep -q 'Debian GNU/Linux 9' /etc/issue.net; then
+   PCMANFM="1.2.5"
+   MOUSEPAD="0.4.1"
+   THUNAR="1.6.11"
+elif grep -q 'Debian GNU/Linux 10' /etc/issue.net; then
+   PCMANFM="1.3.1"
+   MOUSEPAD="0.4.1"
+   THUNAR="1.8.4"
+elif grep -q 'Debian GNU/Linux 11' /etc/issue.net; then
+   PCMANFM="1.3.2"
+   MOUSEPAD="0.5.2"
+   THUNAR="4.16.8"
+else
+   exit 0
+fi
+
+cp -R patches /tmp
+cd /tmp
+
+apt-get update
+
+for APP in pcmanfm mousepad thunar; do
+   # versions for buster
+   if [ $APP = "pcmanfm" ]; then
+      VER=$PCMANFM
+   elif [ $APP = "mousepad" ]; then
+      VER=$MOUSEPAD
+   elif [ $APP = "thunar" ]; then
+      VER=$THUNAR
+   fi
+   apt-get --yes build-dep $APP
+   apt-get source $APP
+   mkdir -p $APP-$VER/debian/patches
+   echo "$APP-$VER-minios.diff" >>$APP-$VER/debian/patches/series
+   cp patches/$APP-$VER-minios.diff $APP-$VER/debian/patches/
+   cd $APP-$VER
+   dpkg-buildpackage -us -uc
+   cd -
+done
