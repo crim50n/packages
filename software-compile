@@ -22,9 +22,6 @@ else
     exit 0
 fi
 
-cp -R patches /tmp
-cd /tmp
-
 apt-get update
 
 for APP in pcmanfm mousepad thunar; do
@@ -50,8 +47,8 @@ for APP in pcmanfm mousepad thunar; do
     mkdir -p $APP-$VER/debian/patches
     echo "$APP-$VER-minios.diff" >>$APP-$VER/debian/patches/series
     cp patches/$APP-$VER-minios.diff $APP-$VER/debian/patches/
+    sed -i "s/$PKGVER/$PKGVER.minios/g" $APP-$VER/debian/changelog
     cd $APP-$VER
-    sed -i "s/$PKGVER/$PKGVER.minios/g" /tmp/$APP-$VER/debian/changelog
     dpkg-buildpackage -us -uc
     cd -
 done
