@@ -6,22 +6,28 @@ function version_to_array() {
     VER=($PKGVER)
 }
 
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
 if grep -q 'Debian GNU/Linux 9' /etc/issue.net; then
     PCMANFM="1.2.5-3"
     MOUSEPAD="0.4.0-4"
     THUNAR="1.6.11-1"
+    DISTR="d9"
 elif grep -q 'Debian GNU/Linux 10' /etc/issue.net; then
     PCMANFM="1.3.1-1"
     MOUSEPAD="0.4.1-2"
     THUNAR="1.8.4-1"
+    DISTR="d10"
 elif grep -q 'Debian GNU/Linux 11' /etc/issue.net; then
     PCMANFM="1.3.2-1"
     MOUSEPAD="0.5.2-1"
     THUNAR="4.16.8-1"
-elif grep -q 'Ubuntu 22.04.1 LTS' /etc/issue.net; then
+    DISTR="d11"
+elif grep -q 'Ubuntu 22.04' /etc/issue.net; then
     PCMANFM="1.3.2-1"
     MOUSEPAD="0.5.8-1"
     THUNAR="4.16.10-1"
+    DISTR="u2204"
 else
     exit 0
 fi
@@ -46,13 +52,31 @@ for APP in pcmanfm mousepad thunar; do
         version_to_array
         VER="${VER[0]}"
     fi
+    cd $SCRIPT_DIR/build
     apt-get --yes build-dep $APP
     apt-get source $APP
-    mkdir -p $APP-$VER/debian/patches
-    echo "$APP-$VER-minios.diff" >>$APP-$VER/debian/patches/series
-    cp patches/$APP-$VER-minios.diff $APP-$VER/debian/patches/
-    sed -i "s/$PKGVER/$PKGVER.minios/g" $APP-$VER/debian/changelog
-    cd $APP-$VER
+    mkdir -p $SCRIPT_DIR/build/$APP-$VER/debian/patches
+    if [ $APP = "mousepad" ]; then
+        cd $SCRIPT_DIR/build/$APP-$VER/$APP
+        X=$(cat mousepad-window.c | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
+        let X=$X-4
+        let Y=$X+41
+        sed -e "${X},${Y}d" mousepad-window.c >mousepad-window.c.tmp
+        X=$(cat mousepad-window.c.tmp | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
+        let X=$X-1
+        let Y=$X+2
+        sed -e "${X},${Y}d" mousepad-window.c.tmp >mousepad-window.c.mod
+        diff -Naur mousepad-window.c mousepad-window.c.mod >mousepad-window.c.diff
+        rm mousepad-window.c.tmp
+        rm mousepad-window.c.mod
+        mv mousepad-window.c.diff $SCRIPT_DIR/patches/$APP-$VER-minios.$DISTR.diff
+    fi
+    echo "$APP-$VER-minios.$DISTR.diff" >>$SCRIPT_DIR/build/$APP-$VER/debian/patches/series
+    cp $SCRIPT_DIR/build/patches/$APP-$VER-minios.diff $SCRIPT_DIR/build/$APP-$VER/debian/patches/
+    sed -i "s/$PKGVER/$PKGVER.minios.$DISTR/g" $SCRIPT_DIR/build/$APP-$VER/debian/changelog
+    cd $SCRIPT_DIR/build/$APP-$VER
     dpkg-buildpackage -us -uc
-    cd -
+    cd $SCRIPT_DIR/build/
+    mkdir -p $SCRIPT_DIR/deb
+    mv $SCRIPT_DIR/build/*.deb $SCRIPT_DIR/deb/
 done
