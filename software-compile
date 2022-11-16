@@ -39,33 +39,19 @@ fi
 apt-get update
 
 for APP in pcmanfm mousepad thunar; do
-    # versions for buster
-    if [ $APP = "pcmanfm" ]; then
-        #VER=$PCMANFM
-        PKGVER=$PCMANFM
-        version_to_array
-        VER="${VER[0]}"
-    elif [ $APP = "mousepad" ]; then
-        #VER=$MOUSEPAD
-        PKGVER=$MOUSEPAD
-        version_to_array
-        VER="${VER[0]}"
-    elif [ $APP = "thunar" ]; then
-        #VER=$THUNAR
-        PKGVER=$THUNAR
-        version_to_array
-        VER="${VER[0]}"
-    fi
+    #VER=$(apt-cache show $APP | grep -m1 Version | awk -F": " '{ print $2 }' | cut -d'-' -f1)
+    VER=$(apt-cache show $APP | grep Version | awk -F": " '{ print $2 }' | sed /minios/d | tail -n1 | cut -d'-' -f1)
     if [ ! -d $SCRIPT_DIR/build ]; then
-        mkdir -p cd $SCRIPT_DIR/build
+        mkdir -p $SCRIPT_DIR/build
     fi
     cd $SCRIPT_DIR/build
     apt-get --yes build-dep $APP
-    if [ -d $SCRIPT_DIR/build/$APP-$VER ]; then
+    if [ -d "$SCRIPT_DIR/build/$APP-$VER" ]; then
         rm -rf $SCRIPT_DIR/build/$APP-$VER
     fi
     apt-get source $APP
-    mkdir -p $SCRIPT_DIR/build/$APP-$VER/debian/patches
+    cd $APP-$VER
+    #mkdir -p $SCRIPT_DIR/build/$APP-$VER/debian/patches
     if [ $APP = "pcmanfm" ]; then
         cd $SCRIPT_DIR/build/$APP-$VER/src
         X=$(cat main-win.c | grep -n -m 1 "if we're using root, Give the user some warnings" | awk -F":" '{ print $1 }')
@@ -104,12 +90,13 @@ for APP in pcmanfm mousepad thunar; do
     fi
     #echo "$APP-$VER-minios.$DISTR.diff" >>$SCRIPT_DIR/build/$APP-$VER/debian/patches/series
     #cp $SCRIPT_DIR/patches/$APP-$VER-minios.$DISTR.diff $SCRIPT_DIR/build/$APP-$VER/debian/patches/
+    PKGVER=$(cat debian/changelog | grep -m1 -o -P '(?<=\().*(?=\))')
     sed -i "s/$PKGVER/$PKGVER.minios.$DISTR/g" $SCRIPT_DIR/build/$APP-$VER/debian/changelog
     cd $SCRIPT_DIR/build/$APP-$VER
     dpkg-buildpackage -us -uc
     cd $SCRIPT_DIR/build/
     if [ ! -d $SCRIPT_DIR/deb ]; then
-        mkdir -p cd $SCRIPT_DIR/deb
+        mkdir -p $SCRIPT_DIR/deb
     fi
     mv $SCRIPT_DIR/build/*.deb $SCRIPT_DIR/deb/
 done
