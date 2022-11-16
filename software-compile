@@ -79,12 +79,11 @@ for APP in pcmanfm mousepad thunar; do
         X=$(cat mousepad-window.c | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
         let X=$X-4
         let Y=$X+41
-        sed -e "${X},${Y}d" mousepad-window.c >mousepad-window.c.tmp
-        X=$(cat mousepad-window.c.tmp | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
+        sed -i -e "${X},${Y}d" mousepad-window.c
+        X=$(cat mousepad-window.c | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
         let X=$X-1
         let Y=$X+2
-        sed -e "${X},${Y}d" mousepad-window.c.tmp >mousepad-window.c
-        rm mousepad-window.c.tmp
+        sed -i -e "${X},${Y}d" mousepad-window.c
         cd $SCRIPT_DIR/build/$APP-$VER/po
         for FILE in $(ls *.po); do
             X=$(cat $FILE | grep -n -m 1 "add the label with the root warning" | awk -F":" '{ print $1 }')
