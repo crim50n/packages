@@ -32,6 +32,10 @@ else
     exit 0
 fi
 
+if grep -q "# deb-src" /etc/apt/sources.list || grep -q "#deb-src" /etc/apt/sources.list; then
+    cp /etc/apt/sources.list /etc/apt/sources.list.orig
+    sed -i "s/# deb-src/deb-src/g;s/#deb-src/deb-src/g" /etc/apt/sources.list
+fi
 apt-get update
 
 for APP in pcmanfm mousepad thunar; do
@@ -52,11 +56,25 @@ for APP in pcmanfm mousepad thunar; do
         version_to_array
         VER="${VER[0]}"
     fi
+    if [ ! -d $SCRIPT_DIR/build ]; then
+        mkdir -p cd $SCRIPT_DIR/build
+    fi
     cd $SCRIPT_DIR/build
     apt-get --yes build-dep $APP
+    if [ -d $SCRIPT_DIR/build/$APP-$VER ]; then
+        rm -rf $SCRIPT_DIR/build/$APP-$VER
+    fi
     apt-get source $APP
     mkdir -p $SCRIPT_DIR/build/$APP-$VER/debian/patches
-    if [ $APP = "mousepad" ]; then
+    if [ $APP = "pcmanfm" ]; then
+        cd $SCRIPT_DIR/build/$APP-$VER/src
+        X=$(cat main-win.c | grep -n -m 1 "if we're using root, Give the user some warnings" | awk -F":" '{ print $1 }')
+        let Y=$X+10
+        sed -i -e "${X},${Y}d" main-win.c
+        cd $SCRIPT_DIR/build/$APP-$VER
+        EDITOR=/bin/true dpkg-source -q --commit . $APP-$VER-minios.$DISTR.diff
+        cp $SCRIPT_DIR/build/$APP-$VER/debian/patches/$APP-$VER-minios.$DISTR.diff $SCRIPT_DIR/patches/
+    elif [ $APP = "mousepad" ]; then
         cd $SCRIPT_DIR/build/$APP-$VER/$APP
         X=$(cat mousepad-window.c | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
         let X=$X-4
@@ -65,18 +83,38 @@ for APP in pcmanfm mousepad thunar; do
         X=$(cat mousepad-window.c.tmp | grep -n -m 1 "mousepad_window_create_root_warning" | awk -F":" '{ print $1 }')
         let X=$X-1
         let Y=$X+2
-        sed -e "${X},${Y}d" mousepad-window.c.tmp >mousepad-window.c.mod
-        diff -Naur mousepad-window.c mousepad-window.c.mod >mousepad-window.c.diff
+        sed -e "${X},${Y}d" mousepad-window.c.tmp >mousepad-window.c
         rm mousepad-window.c.tmp
-        rm mousepad-window.c.mod
-        mv mousepad-window.c.diff $SCRIPT_DIR/patches/$APP-$VER-minios.$DISTR.diff
+        cd $SCRIPT_DIR/build/$APP-$VER/po
+        for FILE in $(ls *.po); do
+            X=$(cat $FILE | grep -n -m 1 "add the label with the root warning" | awk -F":" '{ print $1 }')
+            let Y=$X+5
+            sed -i -e "${X},${Y}d" $FILE
+        done
+        cd $SCRIPT_DIR/build/$APP-$VER
+        EDITOR=/bin/true dpkg-source -q --commit . $APP-$VER-minios.$DISTR.diff
+        cp $SCRIPT_DIR/build/$APP-$VER/debian/patches/$APP-$VER-minios.$DISTR.diff $SCRIPT_DIR/patches/
+    elif [ $APP = "thunar" ]; then
+        cd $SCRIPT_DIR/build/$APP-$VER/$APP
+        X=$(cat thunar-window.c | grep -n -m 1 "check if we need to add the root warning" | awk -F":" '{ print $1 }')
+        let Y=$X+15
+        sed -i -e "${X},${Y}d" thunar-window.c
+        cd $SCRIPT_DIR/build/$APP-$VER
+        EDITOR=/bin/true dpkg-source -q --commit . $APP-$VER-minios.$DISTR.diff
+        cp $SCRIPT_DIR/build/$APP-$VER/debian/patches/$APP-$VER-minios.$DISTR.diff $SCRIPT_DIR/patches/
     fi
-    echo "$APP-$VER-minios.$DISTR.diff" >>$SCRIPT_DIR/build/$APP-$VER/debian/patches/series
-    cp $SCRIPT_DIR/build/patches/$APP-$VER-minios.diff $SCRIPT_DIR/build/$APP-$VER/debian/patches/
+    #echo "$APP-$VER-minios.$DISTR.diff" >>$SCRIPT_DIR/build/$APP-$VER/debian/patches/series
+    #cp $SCRIPT_DIR/patches/$APP-$VER-minios.$DISTR.diff $SCRIPT_DIR/build/$APP-$VER/debian/patches/
     sed -i "s/$PKGVER/$PKGVER.minios.$DISTR/g" $SCRIPT_DIR/build/$APP-$VER/debian/changelog
     cd $SCRIPT_DIR/build/$APP-$VER
     dpkg-buildpackage -us -uc
     cd $SCRIPT_DIR/build/
-    mkdir -p $SCRIPT_DIR/deb
+    if [ ! -d $SCRIPT_DIR/deb ]; then
+        mkdir -p cd $SCRIPT_DIR/deb
+    fi
     mv $SCRIPT_DIR/build/*.deb $SCRIPT_DIR/deb/
 done
+
+if [ -f /etc/apt/sources.list.orig ]; then
+    cp /etc/apt/sources.list.orig /etc/apt/sources.list
+fi
